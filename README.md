@@ -1,5 +1,6 @@
 # EXPERIMENT--05-INTERFACING-A-4X4-MATRIX-KEYPAD-AND-DISPLAY-THE-OUTPUT-ON-LCD
-
+## NAME : HARRISH P
+## REG NO: 212224230088
 ## Aim: 
 To Interface a 4X4 matrix keypad and show the output on 16X2 LCD display to ARM controller , and simulate it in Proteus
 ## Components required: 
@@ -36,7 +37,7 @@ Below is the Pinout and Pin Description of 16x2 LCD Module:
 ![image](https://user-images.githubusercontent.com/36288975/233857710-541ac1c2-786c-4dfc-b7b5-e3a4868a9cb6.png)
 ![image](https://user-images.githubusercontent.com/36288975/233857733-05df5dbf-1a1e-479e-85bb-8014a39ad878.png)
 
-4-bit and 8-bit Mode of LCD:
+## 4-bit and 8-bit Mode of LCD:
 
 The LCD can work in two different modes, namely the 4-bit mode and the 8-bit mode. In 4 bit mode we send the data nibble by nibble, first upper nibble and then lower nibble. For those of you who don’t know what a nibble is: a nibble is a group of four bits, so the lower four bits (D0-D3) of a byte form the lower nibble while the upper four bits (D4-D7) of a byte form the higher nibble. This enables us to send 8 bit data.
 
@@ -123,7 +124,7 @@ C2
 
 Jump to second line, position 2
  
-## Procedure:
+### Procedure:
  1. click on STM 32 CUBE IDE, the following screen will appear 
  ![image](https://user-images.githubusercontent.com/36288975/226189166-ac10578c-c059-40e7-8b80-9f84f64bf088.png)
 
@@ -179,16 +180,168 @@ https://engineeringxpert.com/wp-content/uploads/2022/04/26.png
 
 ## CIRCUIT DIAGRAM 
  
+<img width="1398" height="943" alt="image" src="https://github.com/user-attachments/assets/6688a921-7c96-48df-a7c0-ca322393afad" />
 
 ## STM 32 CUBE PROGRAM :
+```
+#include "main.h"
+#include "lcd.h"
+#include <stdbool.h>
 
+bool col1, col2, col3, col4;
 
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+void key(void);
 
+Lcd_PortType ports[] = {GPIOA, GPIOA, GPIOA, GPIOA};
+Lcd_PinType pins[]  = {GPIO_PIN_3, GPIO_PIN_2, GPIO_PIN_1, GPIO_PIN_0};
+Lcd_HandleTypeDef lcd;
+
+int main(void)
+{
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+
+    lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_0,
+                     GPIOB, GPIO_PIN_1, LCD_4_BIT_MODE);
+
+    while (1)
+    {
+        key();
+    }
+}
+
+void key(void)
+{
+    // Set row0 LOW, others HIGH
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_SET);
+
+    // Read columns
+    col1 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_4);
+    col2 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_5);
+    col3 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6);
+    col4 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_7);
+
+    Lcd_cursor(&lcd, 0, 1);
+
+    if (!col1)
+    {
+        Lcd_clear(&lcd);
+        Lcd_string(&lcd, "key 7");
+        HAL_Delay(500);
+    }
+    else if (!col2)
+    {
+        Lcd_clear(&lcd);
+        Lcd_string(&lcd, "key 8");
+        HAL_Delay(500);
+    }
+    else if (!col3)
+    {
+        Lcd_clear(&lcd);
+        Lcd_string(&lcd, "key 9");
+        HAL_Delay(500);
+    }
+    else if (!col4)
+    {
+        Lcd_clear(&lcd);
+        Lcd_string(&lcd, "key %");
+        HAL_Delay(500);
+    }
+}
+
+/* -------- GPIO Init -------- */
+static void MX_GPIO_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    /* LCD Pins */
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_1, GPIO_PIN_RESET);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* Keypad Rows (PC0-PC3) as output */
+    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    /* Keypad Cols (PC4-PC7) as input with pull-up */
+    GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+}
+
+/* -------- Clock Config -------- */
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+                                | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* -------- Error Handler -------- */
+void Error_Handler(void)
+{
+    __disable_irq();
+    while (1) {}
+}
+
+#ifdef USE_FULL_ASSERT
+void assert_failed(uint8_t *file, uint32_t line)
+{
+    /* Optionally add debug print */
+}
+#endif
+
+```
 ## Output screen shots of proteus  :
- 
+ <img width="1326" height="989" alt="image" src="https://github.com/user-attachments/assets/1d053ca2-c935-4146-a061-3d2e648a4590" />
+
+<img width="1405" height="993" alt="image" src="https://github.com/user-attachments/assets/6545e43a-dfd9-44dc-8f95-469ed5cc991c" />
+
  
  ## CIRCUIT DIAGRAM (EXPORT THE GRAPHICS TO PDF AND ADD THE SCREEN SHOT HERE): 
- 
+ <img width="1398" height="943" alt="image" src="https://github.com/user-attachments/assets/22625428-a579-4f5c-853a-db71fb196784" />
+
  
 ## Result :
 Interfacing a 4x4 keypad with ARM microcontroller are simulated in proteus and the results are verified.
